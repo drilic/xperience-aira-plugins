@@ -9,10 +9,10 @@
     <AssemblyAttribute Include="CMS.AssemblyDiscoverableAttribute" />
   </ItemGroup>
   <ItemGroup>
-<PackageReference Include="kentico.xperience.admin" Version="31.1.2" />
+    <PackageReference Include="kentico.xperience.admin" Version="31.1.2" />
+    <PackageReference Include="Microsoft.Extensions.AI" Version="*" />
     <PackageReference Include="Microsoft.SemanticKernel.Abstractions" Version="*" />
     <PackageReference Include="Microsoft.SemanticKernel.Core" Version="*" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="*" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="*" />
   </ItemGroup>
 </Project>

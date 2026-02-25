@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using EXLRT.Xperience.AIRA.Plugins.Contracts;
 using EXLRT.Xperience.AIRA.Plugins.Services;
 
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
@@ -27,6 +28,7 @@ public abstract class ChatCompletionServiceExtensionsBase : IChatCompletionServi
 
     private readonly IReadOnlyList<IAiraPlugin> _registeredPlugins;
     private readonly PluginResponseEnhancementFilter? _enhancementFilter;
+    private readonly IReadOnlyDictionary<string, AiraPluginOptions>? _pluginOptionsByName;
 
     /// <summary>
     /// The provider type associated with this chat service,
@@ -46,8 +48,36 @@ public abstract class ChatCompletionServiceExtensionsBase : IChatCompletionServi
         // Create enhancement filter from the internal options dictionary.
         if (registry is AiraPluginRegistry concreteRegistry && concreteRegistry.AllOptions.Count > 0)
         {
-            _enhancementFilter = new PluginResponseEnhancementFilter(concreteRegistry.AllOptions);
+            _pluginOptionsByName = concreteRegistry.AllOptions;
+            _enhancementFilter = new PluginResponseEnhancementFilter(_pluginOptionsByName);
         }
+    }
+
+    /// <summary>
+    /// Configures a <see cref="FunctionInvokingChatClient"/> to apply the same
+    /// per-plugin <see cref="AiraPluginOptions.EnhancementPrompt"/> logic that
+    /// <see cref="PluginResponseEnhancementFilter"/> provides for SK-based pipelines.
+    /// Pass this method to <c>UseFunctionInvocation(configure:)</c> in M.E.AI pipelines.
+    /// </summary>
+    protected void AddEnhancementFunction(FunctionInvokingChatClient client)
+    {
+        if (_pluginOptionsByName == null || _pluginOptionsByName.Count == 0)
+            return;
+
+        var options = _pluginOptionsByName;
+
+        client.FunctionInvoker = async (context, cancellationToken) =>
+        {
+            var result = await context.Function.InvokeAsync(context.Arguments, cancellationToken);
+
+            // Extract plugin name from the M.E.AI naming convention "PluginName_FunctionName".
+            var fullName = context.Function.Name;
+            var separatorIndex = fullName.IndexOf('_');
+            var pluginName = separatorIndex > 0 ? fullName.Substring(0, separatorIndex) : null;
+
+            return PluginResponseEnhancer.TryEnhance(pluginName, result, options)
+                ?? result;
+        };
     }
 
     /// <summary>
