@@ -75,7 +75,7 @@ public static class ServiceCollectionExtensions
 
         if (descriptor != null)
         {
-            services.AddKeyedSingleton<IChatCompletionService>("Kentico", (serviceProvider, _) =>
+            services.AddKeyedSingleton<IChatCompletionService>(AiraPluginServiceKeys.OriginalChat, (serviceProvider, _) =>
             {
                 if (descriptor.ImplementationFactory != null)
                     return (IChatCompletionService)descriptor.ImplementationFactory(serviceProvider);

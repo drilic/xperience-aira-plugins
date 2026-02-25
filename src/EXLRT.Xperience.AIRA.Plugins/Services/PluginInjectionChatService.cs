@@ -15,7 +15,7 @@ namespace EXLRT.Xperience.AIRA.Plugins.Services;
 internal sealed class PluginInjectionChatService : ChatCompletionServiceExtensionsBase
 {
     public PluginInjectionChatService(
-        [FromKeyedServices("Kentico")] IChatCompletionService kenticoService,
+        [FromKeyedServices(AiraPluginServiceKeys.OriginalChat)] IChatCompletionService kenticoService,
         IEnumerable<IAiraPlugin> plugins,
         IAiraPluginRegistry registry)
         : base(kenticoService, plugins, registry) { }

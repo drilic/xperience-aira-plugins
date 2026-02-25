@@ -36,7 +36,7 @@ public abstract class ChatCompletionServiceExtensionsBase : IChatCompletionServi
     protected virtual Type? AssociatedProviderType => null;
 
     protected ChatCompletionServiceExtensionsBase(
-        [FromKeyedServices("Kentico")] IChatCompletionService kenticoService,
+        [FromKeyedServices(AiraPluginServiceKeys.OriginalChat)] IChatCompletionService kenticoService,
         IEnumerable<IAiraPlugin> plugins,
         IAiraPluginRegistry registry)
     {
