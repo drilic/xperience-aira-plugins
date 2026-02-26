@@ -26,6 +26,13 @@ public abstract class ChatCompletionServiceExtensionsBase : IChatCompletionServi
     /// </summary>
     protected IChatCompletionService Kentico { get; }
 
+    /// <summary>
+    /// Optional replacement chat service. When set by a subclass, the base methods
+    /// delegate to this service instead of <see cref="Kentico"/>.
+    /// Leave <c>null</c> to use Kentico as the default.
+    /// </summary>
+    protected IChatCompletionService? Inner { get; set; }
+
     private readonly IReadOnlyList<IAiraPlugin> _registeredPlugins;
     private readonly PluginResponseEnhancementFilter? _enhancementFilter;
     private readonly IReadOnlyDictionary<string, AiraPluginOptions>? _pluginOptionsByName;
@@ -120,8 +127,10 @@ public abstract class ChatCompletionServiceExtensionsBase : IChatCompletionServi
         }
     }
 
+    private IChatCompletionService ActiveService => Inner ?? Kentico;
+
     /// <inheritdoc />
-    public virtual IReadOnlyDictionary<string, object?> Attributes => Kentico.Attributes;
+    public virtual IReadOnlyDictionary<string, object?> Attributes => ActiveService.Attributes;
 
     /// <inheritdoc />
     public virtual async Task<IReadOnlyList<ChatMessageContent>> GetChatMessageContentsAsync(
@@ -131,7 +140,7 @@ public abstract class ChatCompletionServiceExtensionsBase : IChatCompletionServi
         CancellationToken cancellationToken = default)
     {
         RegisterPlugins(kernel);
-        return await Kentico.GetChatMessageContentsAsync(chatHistory, executionSettings, kernel, cancellationToken);
+        return await ActiveService.GetChatMessageContentsAsync(chatHistory, executionSettings, kernel, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -142,6 +151,6 @@ public abstract class ChatCompletionServiceExtensionsBase : IChatCompletionServi
         CancellationToken cancellationToken = default)
     {
         RegisterPlugins(kernel);
-        return Kentico.GetStreamingChatMessageContentsAsync(chatHistory, executionSettings, kernel, cancellationToken);
+        return ActiveService.GetStreamingChatMessageContentsAsync(chatHistory, executionSettings, kernel, cancellationToken);
     }
 }
