@@ -56,6 +56,10 @@ Method definitions:
 IServiceCollection AddAiraPlugin<TPlugin>(this IServiceCollection services, Action<AiraPluginOptions>? configure = null)
     where TPlugin : class, IAiraPlugin;
 
+// Register a custom chat completion service (optional — replaces Kentico's built-in chat backend)
+IServiceCollection AddAiraCompletion<TChatService>(this IServiceCollection services)
+    where TChatService : ChatCompletionServiceExtensionsBase;
+
 // Initialize plugin support and wrap chat completion service
 IServiceCollection UseAiraPlugins(this IServiceCollection services);
 ```
@@ -68,7 +72,7 @@ using EXLRT.Xperience.AIRA.Plugins;
 // Initialize plugin support
 builder.Services.UseAiraPlugins();
 
-// Register plugins (before UseAiraPlugins)
+// Register plugins (order does not matter)
 builder.Services.AddAiraPlugin<WeatherPlugin>(options =>
 {
     options.EnhancementPrompt = "Summarize weather naturally.";
@@ -95,7 +99,9 @@ builder.Services.AddAiraPlugin<WeatherPlugin>(options =>
 
 ### Custom Chat Completion Services
 
-Allows you to override the Aira chat interface with custom LLM providers while still leveraging the plugin framework. Create a class that inherits from `ChatCompletionServiceExtensionsBase` and override the necessary methods to call your provider's API.
+Allows you to override the Aira chat interface with custom LLM providers while still leveraging the plugin framework. Create a class that inherits from `ChatCompletionServiceExtensionsBase` and register it with `AddAiraCompletion<T>()`.
+
+#### 1. Create a custom chat service
 
 ```csharp
 public sealed class AnthropicChatCompletionService : ChatCompletionServiceExtensionsBase
@@ -106,11 +112,26 @@ public sealed class AnthropicChatCompletionService : ChatCompletionServiceExtens
         IAiraPluginRegistry registry,
         IConfiguration configuration)
         : base(kenticoService, plugins, registry)
-    {         
+    {
         // Initialize your provider client here using configuration
     }
 }
 ```
+
+#### 2. Register in Program.cs
+
+```csharp
+// Initialize plugin support
+builder.Services.UseAiraPlugins();
+
+// Register custom chat backend
+builder.Services.AddAiraCompletion<AnthropicChatCompletionService>();
+
+// Register plugins (optional — order does not matter)
+builder.Services.AddAiraPlugin<WeatherPlugin>();
+```
+
+`AddAiraCompletion<T>()` works independently — you can use it with or without plugins, and with or without the _xperience-aira-providers_ library.
 
 You can find details in the [examples](examples/) folder.
 
