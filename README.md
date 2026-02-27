@@ -12,6 +12,10 @@ The xperience-aira-plugins project is a plugin framework for extending Kentico's
 - **net10.0** (long-term support release)
 - **Microsoft.SemanticKernel** packages for plugin development
 
+## Optional Extensions
+
+- **Anthropic.SDK 5.10.0** for `AnthropicChatCompletionService` 
+
 ## Download & Installation
 
 1. Download the source code
@@ -135,64 +139,19 @@ builder.Services.AddAiraPlugin<WeatherPlugin>();
 
 You can find details in the [examples](examples/) folder.
 
+#### 3. Configuration
 
-### Plugin-to-Provider Restrictions (Optional)
+Add the provider settings to your `appsettings.json`:
 
-This requires the _xperience-aira-providers_ library (https://github.com/drilic/xperience-aira-providers).
-
-When using the _EXLRT.Xperience.AIRA.Providers_ library with multiple custom providers, you can restrict which plugins are available to which provider. This is useful when certain plugins should only be accessible to a specific LLM provider (e.g., a plugin that relies on Claude-specific capabilities should not be available to an OpenAI-based chat service).
-
-The restriction mechanism requires **two parts** working together:
-
-#### 1. The chat service identifies its provider
-
-Your `ChatCompletionServiceExtensionsBase` subclass must override `AssociatedProviderType` to declare which provider it belongs to. The type is the `IAiraClient` implementation type — it acts as the provider's identity:
-
-```csharp
-public sealed class AnthropicChatCompletionService : ChatCompletionServiceExtensionsBase
-{
-    // Links this chat service to the Anthropic provider
-    protected override Type? AssociatedProviderType => typeof(CustomAnthropicAiraClient);
-
-    // ... rest of implementation
-}
+```json
+"AiraProviders": {
+    "Anthropic": {
+      "ApiKey": "TODO",
+      "Model": "claude-haiku-4-5-20251001",
+      "MaxTokens": 4096
+    }
+  }
 ```
-
-If `AssociatedProviderType` is not overridden (defaults to `null`), any plugin that specifies `TargetProviders` will be **excluded** from this chat service — because there is no provider type to match against.
-
-#### 2. The plugin declares its target providers
-
-Implement the `TargetProviders` property on your plugin to restrict which providers can use it:
-
-```csharp
-[Description("Provides real-time weather data.")]
-public class WeatherPlugin : IAiraPlugin
-{
-    // Only available to the Anthropic provider's chat service
-    public IReadOnlyList<Type>? TargetProviders => [typeof(CustomAnthropicAiraClient)];
-
-    // ... kernel functions
-}
-```
-
-#### How the filtering works
-
-The base class evaluates each plugin before every chat call using the following logic:
-
-| `TargetProviders` value | `AssociatedProviderType` value | Result |
-|---|---|---|
-| `null` or empty | Any | Plugin is **registered** (available to all) |
-| `[typeof(ProviderA)]` | `typeof(ProviderA)` | Plugin is **registered** (match) |
-| `[typeof(ProviderA)]` | `typeof(ProviderB)` | Plugin is **excluded** (no match) |
-| `[typeof(ProviderA)]` | `null` (not overridden) | Plugin is **excluded** (no provider identity to match) |
-
-A plugin can target multiple providers:
-
-```csharp
-public IReadOnlyList<Type>? TargetProviders => [typeof(CustomAnthropicAiraClient), typeof(CustomOpenAIAiraClient)];
-```
-
-> **Note:** Plugin restrictions only apply to the **chat completion pipeline** (`IChatCompletionService`). `IAiraClient` implementations (used for email generation, translation, image analysis, etc.) do not have access to plugins or the Semantic Kernel — they operate as standalone request/response services.
 
 ### Admin UI
 

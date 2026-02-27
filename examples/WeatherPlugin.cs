@@ -1,12 +1,5 @@
-using System;
 using System.ComponentModel;
-using System.Net.Http;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-
-using EXLRT.Xperience.AIRA.Plugins.Contracts;
-using Microsoft.SemanticKernel;
 
 namespace DancingGoat.Plugins;
 
