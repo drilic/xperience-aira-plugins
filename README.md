@@ -8,18 +8,22 @@ The xperience-aira-plugins project is a plugin framework for extending Kentico's
 
 ## Requirements
 
-- **Kentico.Xperience.Admin 31.1.2** or newer version to use latest Xperience by Kentico
-- **net10.0** as a long-term support (LTS) release
+- **Kentico.Xperience.Admin 31.1.2** or newer to use the latest Xperience by Kentico
+- **net10.0** (long-term support release)
 - **Microsoft.SemanticKernel** packages for plugin development
+
+## Optional Extensions
+
+- **Anthropic.SDK 5.10.0** for `AnthropicChatCompletionService` 
 
 ## Download & Installation
 
-1. Download source code
-2. Include downloaded library into your project
-    * Copy folder _EXLRT.Xperience.AIRA.Plugins_ into your project
-    * Add as existing project in Visual Studio/VS Code
-    * Add project reference to main project
-    * Rebuild solution
+1. Download the source code
+2. Include the downloaded library in your project
+    * Copy the _EXLRT.Xperience.AIRA.Plugins_ folder into your project
+    * Add it as an existing project in Visual Studio/VS Code
+    * Add a project reference to your main project
+    * Rebuild the solution
 
 ## Setup
 
@@ -35,14 +39,14 @@ using System.ComponentModel;
 [Description("Provides real-time weather data from the Open-Meteo API.")]
 public class WeatherPlugin : IAiraPlugin
 {
-    // unique name of the plugin, used for identification in Aira and admin UI
+    // Unique name of the plugin, used for identification in Aira and the admin UI
     public string PluginName => "Weather";
 
     [KernelFunction("get_weather")]
     [Description("Gets the current weather for a given city")]
     public string GetWeather(string city)
     {
-        // Do a custom logic here, call API, etc.
+        // Add custom logic here — call an API, etc.
         return $"The weather in {city} is sunny.";
     }
 }
@@ -56,6 +60,10 @@ Method definitions:
 IServiceCollection AddAiraPlugin<TPlugin>(this IServiceCollection services, Action<AiraPluginOptions>? configure = null)
     where TPlugin : class, IAiraPlugin;
 
+// Register a custom chat completion service (optional — replaces Kentico's built-in chat backend)
+IServiceCollection AddAiraCompletion<TChatService>(this IServiceCollection services)
+    where TChatService : ChatCompletionServiceExtensionsBase;
+
 // Initialize plugin support and wrap chat completion service
 IServiceCollection UseAiraPlugins(this IServiceCollection services);
 ```
@@ -68,7 +76,7 @@ using EXLRT.Xperience.AIRA.Plugins;
 // Initialize plugin support
 builder.Services.UseAiraPlugins();
 
-// Register plugins (before UseAiraPlugins)
+// Register plugins (order does not matter)
 builder.Services.AddAiraPlugin<WeatherPlugin>(options =>
 {
     options.EnhancementPrompt = "Summarize weather naturally.";
@@ -93,6 +101,58 @@ builder.Services.AddAiraPlugin<WeatherPlugin>(options =>
 
 > **Note:** The `IFunctionInvocationFilter`-based enhancement works when using Kentico's built-in Aira service (which uses the SK kernel natively). Custom providers using `Microsoft.Extensions.AI`'s `UseFunctionInvocation()` may not invoke SK's `kernel.FunctionInvocationFilters`.
 
+### Custom Chat Completion Services
+
+Allows you to override the Aira chat interface with custom LLM providers while still leveraging the plugin framework. Create a class that inherits from `ChatCompletionServiceExtensionsBase` and register it with `AddAiraCompletion<T>()`.
+
+#### 1. Create a custom chat service
+
+```csharp
+public sealed class AnthropicChatCompletionService : ChatCompletionServiceExtensionsBase
+{
+    public AnthropicChatCompletionService(
+        [FromKeyedServices(AiraPluginServiceKeys.OriginalChat)] IChatCompletionService kenticoService,
+        IEnumerable<IAiraPlugin> plugins,
+        IAiraPluginRegistry registry,
+        IConfiguration configuration)
+        : base(kenticoService, plugins, registry)
+    {
+        // Initialize your provider client here using configuration
+    }
+}
+```
+
+#### 2. Register in Program.cs
+
+```csharp
+// Initialize plugin support
+builder.Services.UseAiraPlugins();
+
+// Register custom chat backend
+builder.Services.AddAiraCompletion<AnthropicChatCompletionService>();
+
+// Register plugins (optional — order does not matter)
+builder.Services.AddAiraPlugin<WeatherPlugin>();
+```
+
+`AddAiraCompletion<T>()` works independently — you can use it with or without plugins, and with or without the _xperience-aira-providers_ library.
+
+You can find details in the [examples](examples/) folder.
+
+#### 3. Configuration
+
+Add the provider settings to your `appsettings.json`:
+
+```json
+"AiraProviders": {
+    "Anthropic": {
+      "ApiKey": "TODO",
+      "Model": "claude-haiku-4-5-20251001",
+      "MaxTokens": 4096
+    }
+  }
+```
+
 ### Admin UI
 
 Once plugins are registered, an **Aira Plugins** page is automatically available in the Xperience admin under the Aira application. The page displays:
@@ -102,10 +162,10 @@ Once plugins are registered, an **Aira Plugins** page is automatically available
 
 ## Disclaimer
 
-This project is a **showcase and proof of concept** demonstrating how Kentico's Aira AI assistant can be extended and customized with plugins. It is intended to illustrate the possibilities of the Aira plugin architecture — how you can inject custom Semantic Kernel functions, configure per-plugin behavior, and integrate third-party AI providers alongside Kentico's built-in service.
+This project is a **showcase and proof of concept** demonstrating how Kentico's Aira AI assistant can be extended with custom plugins. It illustrates the possibilities of the Aira plugin architecture — injecting custom Semantic Kernel functions, configuring per-plugin behavior, and integrating third-party AI providers alongside Kentico's built-in service.
 
 This is **not an official Kentico product** and is not intended for production use without further review and hardening. Use it as a reference, learning resource, and starting point for building your own Aira customizations.
 
 ## Contributions and Support
 
-Feel free to fork and submit pull requests or report issues to contribute. Either this way or another one, we will look into them as soon as possible.
+Feel free to fork and submit pull requests or report issues. We will look into them as soon as possible.

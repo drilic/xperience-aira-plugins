@@ -15,6 +15,9 @@ public static class ServiceCollectionExtensions
     // Options accumulated during AddAiraPlugin<T> calls, keyed by Type.
     private static readonly Dictionary<Type, AiraPluginOptions> PluginOptionsByType = new();
 
+    // Custom chat completion service type registered via AddAiraCompletion<T>.
+    private static Type? _customChatServiceType;
+
     /// <summary>
     /// Registers an <see cref="IAiraPlugin"/> so it is automatically added to the
     /// Semantic Kernel when the chat completion service is invoked.
@@ -35,6 +38,19 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
+    /// Registers a custom <see cref="IChatCompletionService"/> implementation that replaces
+    /// Kentico's built-in chat backend while preserving plugin injection.
+    /// The service must extend <see cref="Infrastructure.ChatCompletionServiceExtensionsBase"/>.
+    /// Call before <see cref="UseAiraPlugins"/>.
+    /// </summary>
+    public static IServiceCollection AddAiraCompletion<TChatService>(this IServiceCollection services)
+        where TChatService : Infrastructure.ChatCompletionServiceExtensionsBase
+    {
+        _customChatServiceType = typeof(TChatService);
+        return services;
+    }
+
+    /// <summary>
     /// Wraps Kentico's chat service to inject registered <see cref="IAiraPlugin"/> instances
     /// into the kernel — without replacing the underlying LLM.
     /// Call after <c>AddKentico()</c>. Use <c>AddAiraPlugin&lt;T&gt;()</c> to register plugins.
@@ -44,7 +60,9 @@ public static class ServiceCollectionExtensions
         CaptureKenticoChatService(services);
 
         services.AddKeyedSingleton<IChatCompletionService>("Aira", (serviceProvider, _) =>
-            ActivatorUtilities.CreateInstance<PluginInjectionChatService>(serviceProvider));
+            _customChatServiceType != null
+                ? (IChatCompletionService)ActivatorUtilities.CreateInstance(serviceProvider, _customChatServiceType)
+                : ActivatorUtilities.CreateInstance<PluginInjectionChatService>(serviceProvider));
 
         services.AddSingleton<IAiraPluginRegistry>(serviceProvider =>
         {
